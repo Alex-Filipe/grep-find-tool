@@ -20,6 +20,9 @@ grep-tool grep -j 8 "pattern"
 # Color output
 grep-tool grep --color=never "foo" .
 
+# Group results by file (organized blocks)
+grep-tool grep --sort "TODO" .
+
 # Find files by name (glob)
 grep-tool find "*.go"
 grep-tool find "test_*" tests/
