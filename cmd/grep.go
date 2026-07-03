@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sort"
 
 	"github.com/spf13/cobra"
 	"github.com/user/grep-tool/internal/matcher"
@@ -16,6 +17,7 @@ var (
 	ignoreCase bool
 	regexpMode bool
 	colorMode  string
+	sortMode   bool
 )
 
 func init() {
@@ -23,6 +25,7 @@ func init() {
 	grepCmd.Flags().BoolVarP(&ignoreCase, "ignore-case", "i", false, "case-insensitive search")
 	grepCmd.Flags().BoolVarP(&regexpMode, "regexp", "e", false, "pattern is a regular expression")
 	grepCmd.Flags().StringVar(&colorMode, "color", "auto", "use colors: auto, always, never")
+	grepCmd.Flags().BoolVar(&sortMode, "sort", false, "group results by file (uses more memory)")
 }
 
 var grepCmd = &cobra.Command{
@@ -65,6 +68,17 @@ Examples:
 			return err
 		}
 
+		if sortMode {
+			matched, err := sortAndPrint(ctx, results, formatter)
+			if err != nil {
+				return err
+			}
+			if matched == 0 {
+				return ErrNoMatches
+			}
+			return nil
+		}
+
 		matched := 0
 		for r := range results {
 			line := formatter.FormatResult(r)
@@ -81,4 +95,28 @@ Examples:
 		}
 		return nil
 	},
+}
+
+func sortAndPrint(ctx context.Context, results <-chan search.Result, formatter *output.Formatter) (int, error) {
+	var all []search.Result
+	for r := range results {
+		if r.Err != nil {
+			fmt.Fprintln(os.Stderr, formatter.FormatResult(r))
+		} else {
+			all = append(all, r)
+		}
+	}
+
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].Path != all[j].Path {
+			return all[i].Path < all[j].Path
+		}
+		return all[i].LineNum < all[j].LineNum
+	})
+
+	out := formatter.FormatGrouped(all)
+	if out != "" {
+		fmt.Print(out)
+	}
+	return len(all), nil
 }
