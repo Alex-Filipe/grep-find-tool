@@ -14,6 +14,8 @@ func NewLiteral(pattern string, ignoreCase bool) MatchFunc {
 	if ignoreCase {
 		lowerPattern := strings.ToLower(pattern)
 		return func(line string) bool {
+			// alloc: ToLower cria string nova por linha.
+			// Se for gargalo, migrar para bytes-based ou scan rune a rune.
 			return strings.Contains(strings.ToLower(line), lowerPattern)
 		}
 	}
