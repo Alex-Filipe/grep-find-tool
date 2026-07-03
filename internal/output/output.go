@@ -100,11 +100,11 @@ func (f *Formatter) FormatGrouped(results []search.Result) string {
 	if f.colorOut {
 		sep = "\033[38;5;208m─────────────────────────────────────\033[0m\n"
 		headerFmt = "\033[38;5;208m%s\033[0m\n"
-		lineFmt = "  \033[1;33m%6d\033[0m    %s\n"
+		lineFmt = "  \033[1;33mLinha %d\033[0m    %s\n"
 	} else {
 		sep = "─────────────────────────────────────\n"
 		headerFmt = "%s\n"
-		lineFmt = "  %6d    %s\n"
+		lineFmt = "  Linha %d    %s\n"
 	}
 
 	currentPath := ""
