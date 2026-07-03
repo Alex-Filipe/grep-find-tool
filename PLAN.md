@@ -44,9 +44,10 @@ walker  ─┘
 - Formato `caminho:linha:texto`.
 - **Highlight do match dentro da linha ainda não implementado** (precisa que
   `MatchFunc` retorne posição — melhoria futura).
-- Agrupamento por arquivo (path no cabeçalho, linhas indentadas) é **opcional**
-  via flag `--sort` — exige bufferizar, então NÃO é o default (quebraria a
-  memória plana). Trade-off "rápido" vs "organizado" fica com o usuário.
+- Agrupamento por arquivo (path no cabeçalho laranja com separador, linhas
+  indentadas com número da linha) via flag `--sort` — exige bufferizar, então
+  NÃO é o default (quebraria a memória plana). Trade-off "rápido" vs
+  "organizado" fica com o usuário.
 
 ## 6. cmd (grep, find) — wiring + UX
 - Validar `args`: pattern obrigatório, paths default `["."]` (múltiplos aceitos).

@@ -81,3 +81,48 @@ func (f *Formatter) formatErr(r search.Result) string {
 	}
 	return fmt.Sprintf("%s: %v", r.Path, r.Err)
 }
+
+// FormatGrouped renders results grouped by file with visual blocks.
+// Each block has a file header with separator lines and indented matches.
+// Requires results to be sorted by path (done by the caller).
+func (f *Formatter) FormatGrouped(results []search.Result) string {
+	if len(results) == 0 {
+		return ""
+	}
+
+	var (
+		buf       []byte
+		sep       string
+		headerFmt string
+		lineFmt   string
+	)
+
+	if f.colorOut {
+		sep = "\033[38;5;208m─────────────────────────────────────\033[0m\n"
+		headerFmt = "\033[38;5;208m%s\033[0m\n"
+		lineFmt = "  \033[1;33mLinha %d\033[0m    %s\n"
+	} else {
+		sep = "─────────────────────────────────────\n"
+		headerFmt = "%s\n"
+		lineFmt = "  Linha %d    %s\n"
+	}
+
+	currentPath := ""
+	for _, r := range results {
+		if r.Err != nil {
+			continue
+		}
+		if r.Path != currentPath {
+			if currentPath != "" {
+				buf = append(buf, '\n')
+			}
+			buf = append(buf, []byte(sep)...)
+			buf = append(buf, []byte(fmt.Sprintf(headerFmt, r.Path))...)
+			buf = append(buf, []byte(sep)...)
+			currentPath = r.Path
+		}
+		buf = append(buf, []byte(fmt.Sprintf(lineFmt, r.LineNum, r.Line))...)
+	}
+
+	return string(buf)
+}
