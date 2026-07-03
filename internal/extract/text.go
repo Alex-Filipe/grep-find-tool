@@ -1,6 +1,8 @@
 package extract
 
 import (
+	"bufio"
+	"bytes"
 	"io"
 	"os"
 )
@@ -15,8 +17,20 @@ func init() {
 type textExtractor struct{}
 
 func (t *textExtractor) Extract(path string) (io.ReadCloser, error) {
-	if isBinary(path) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	br := bufio.NewReader(f)
+	head, _ := br.Peek(512)
+	if bytes.IndexByte(head, 0) >= 0 {
+		f.Close()
 		return nil, nil
 	}
-	return os.Open(path)
+
+	return struct {
+		io.Reader
+		io.Closer
+	}{br, f}, nil
 }

@@ -34,32 +34,6 @@ func TestTextExtractorNotFound(t *testing.T) {
 	}
 }
 
-func TestBinaryDetection(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "binary.bin")
-	data := []byte{0x00, 0x01, 0x02, 0x03}
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if !isBinary(path) {
-		t.Error("expected binary detection for file with NUL byte")
-	}
-}
-
-func TestNonBinaryDetection(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "text.txt")
-	data := []byte("hello world\nthis is text\n")
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if isBinary(path) {
-		t.Error("expected non-binary for plain text")
-	}
-}
-
 func TestBinaryFileSkippedByExtractor(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "binary.go")
@@ -92,6 +66,14 @@ func TestPDFExtractor(t *testing.T) {
 	}
 	if r != nil {
 		t.Error("expected nil reader for .pdf stub")
+	}
+}
+
+func TestIOErrorPropagated(t *testing.T) {
+	e := For(".go")
+	_, err := e.Extract("/nonexistent/file.go")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
 	}
 }
 

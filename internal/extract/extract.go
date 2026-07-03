@@ -1,14 +1,11 @@
 package extract
 
-import (
-	"io"
-	"os"
-)
+import "io"
 
 // Extractor defines an interface for reading text from a file.
 // The caller must close the returned reader.
-// If the file cannot be read or is binary, Extract returns (nil, nil)
-// and the caller should skip it.
+// If the file is binary, Extract returns (nil, nil) — the caller should skip it.
+// If the file cannot be read, Extract returns (nil, err).
 type Extractor interface {
 	Extract(path string) (io.ReadCloser, error)
 }
@@ -26,26 +23,4 @@ func Register(ext string, e Extractor) {
 // For returns the extractor registered for the given extension.
 func For(ext string) Extractor {
 	return registry[ext]
-}
-
-// isBinary checks if a file appears to be binary by looking for NUL bytes
-// in the first 512 bytes.
-func isBinary(path string) bool {
-	f, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-
-	buf := make([]byte, 512)
-	n, err := f.Read(buf)
-	if err != nil && n == 0 {
-		return false
-	}
-	for _, b := range buf[:n] {
-		if b == 0 {
-			return true
-		}
-	}
-	return false
 }
