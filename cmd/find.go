@@ -32,6 +32,10 @@ Examples:
 			paths = []string{"."}
 		}
 
+		if _, err := filepath.Match(pattern, "x"); err != nil {
+			return fmt.Errorf("invalid pattern %q: %w", pattern, err)
+		}
+
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 		defer stop()
 

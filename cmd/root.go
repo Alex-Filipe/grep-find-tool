@@ -16,6 +16,8 @@ var rootCmd = &cobra.Command{
 Usage:
   grep-tool grep <pattern> [paths...]
   grep-tool find <name> [paths...]`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func Execute() {

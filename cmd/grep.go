@@ -65,15 +65,20 @@ Examples:
 			return err
 		}
 
+		matched := 0
 		for r := range results {
 			line := formatter.FormatResult(r)
 			if r.Err != nil {
 				fmt.Fprintln(os.Stderr, line)
-			} else if line != "" {
+			} else {
 				fmt.Println(line)
+				matched++
 			}
 		}
 
+		if matched == 0 {
+			os.Exit(1)
+		}
 		return nil
 	},
 }
