@@ -1,8 +1,16 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 )
+
+// ErrNoMatches is returned by grep when no matches are found.
+// It signals exit code 1 (POSIX convention: 1 = no matches).
+var ErrNoMatches = errors.New("no matches found")
 
 var (
 	workers int
@@ -21,7 +29,14 @@ Usage:
 }
 
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
+	err := rootCmd.Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if errors.Is(err, ErrNoMatches) {
+			os.Exit(1)
+		}
+		os.Exit(2)
+	}
 }
 
 func init() {

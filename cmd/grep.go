@@ -77,7 +77,7 @@ Examples:
 		}
 
 		if matched == 0 {
-			os.Exit(1)
+			return ErrNoMatches
 		}
 		return nil
 	},
