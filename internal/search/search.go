@@ -3,7 +3,6 @@ package search
 import (
 	"bufio"
 	"context"
-	"io"
 	"path/filepath"
 	"sync"
 
@@ -23,7 +22,7 @@ type Result struct {
 
 // Search runs the full pipeline: walker -> extract -> matcher.
 // Uses a worker pool for parallel processing over all given roots.
-// Results are streamed incrementantly through the returned channel (unordered).
+// Results are streamed incrementally through the returned channel (unordered).
 // The returned error is only for setup failures (e.g. root doesn't exist);
 // per-file errors are embedded in Result.Err.
 func Search(ctx context.Context, roots []string, match matcher.MatchFunc, workers int) (<-chan Result, error) {
@@ -36,11 +35,10 @@ func Search(ctx context.Context, roots []string, match matcher.MatchFunc, worker
 
 	results := make(chan Result, workers*2)
 
-	// Fan-in: merge walker channels from all roots.
-	paths := mergePathChannels(ctx, roots)
-	if paths == nil {
+	paths, err := mergePathChannels(ctx, roots)
+	if err != nil {
 		close(results)
-		return results, nil
+		return results, err
 	}
 
 	var wg sync.WaitGroup
@@ -70,20 +68,19 @@ func Search(ctx context.Context, roots []string, match matcher.MatchFunc, worker
 }
 
 // mergePathChannels starts a walker for each root and merges all path channels.
-// Returns nil if any root fails stat.
-func mergePathChannels(ctx context.Context, roots []string) <-chan string {
-	out := make(chan string)
-
+// All walkers are started before any goroutine — if any root fails,
+// no goroutines are leaked.
+func mergePathChannels(ctx context.Context, roots []string) (<-chan string, error) {
 	var walkers []<-chan string
 	for _, root := range roots {
 		ch, err := walker.Walk(ctx, root)
 		if err != nil {
-			// Setup failure — abort.
-			return nil
+			return nil, err
 		}
 		walkers = append(walkers, ch)
 	}
 
+	out := make(chan string)
 	go func() {
 		defer close(out)
 		var wg sync.WaitGroup
@@ -103,7 +100,7 @@ func mergePathChannels(ctx context.Context, roots []string) <-chan string {
 		wg.Wait()
 	}()
 
-	return out
+	return out, nil
 }
 
 // processFile extracts text from a file, scans it line by line,
@@ -119,7 +116,7 @@ func processFile(ctx context.Context, results chan<- Result, path string, match 
 	ext := filepath.Ext(path)
 	e := extract.For(ext)
 	if e == nil {
-		send(Result{Path: path})
+		// No extractor for this extension — skip.
 		return
 	}
 
@@ -130,18 +127,11 @@ func processFile(ctx context.Context, results chan<- Result, path string, match 
 	}
 	if r == nil {
 		// Binary or unsupported — skip silently.
-		send(Result{Path: path})
 		return
 	}
 	defer r.Close()
 
-	br, ok := r.(io.Reader)
-	if !ok {
-		send(Result{Path: path, Err: io.ErrUnexpectedEOF})
-		return
-	}
-
-	scanner := bufio.NewScanner(br)
+	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	lineNum := 0
 	for scanner.Scan() {
