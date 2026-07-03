@@ -23,7 +23,11 @@ func (t *textExtractor) Extract(path string) (io.ReadCloser, error) {
 	}
 
 	br := bufio.NewReader(f)
-	head, _ := br.Peek(512)
+	head, err := br.Peek(512)
+	if err != nil && err != io.EOF {
+		f.Close()
+		return nil, err
+	}
 	if bytes.IndexByte(head, 0) >= 0 {
 		f.Close()
 		return nil, nil
