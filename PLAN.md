@@ -19,10 +19,12 @@ walker  ─┘
 - Contrato: binário → `(nil, nil)` (pular); erro de I/O → `(nil, err)` (propagar).
 - `.pdf` é stub (`TODO`); `For(ext)` nil → search pula.
 
-## 3. walker
+## 3. walker ✅
 - `filepath.WalkDir` → canal, envio bloqueante (backpressure entra aqui).
-- Respeita `ctx.Done()`. Pula `.git/` e diretórios ocultos.
+- Respeita `ctx.Done()`. Pula `.git/` e diretórios ocultos — **exceto o root**
+  (se o usuário nomeou `~/.config`, o walk entra).
 - Erro de permissão: `continue`, não abortar.
+- Root que é arquivo único: enviado direto, sem checagem de oculto.
 - `.gitignore` fica como `TODO` (adiar; se for implementar, usar lib).
 
 ## 4. search (núcleo)
