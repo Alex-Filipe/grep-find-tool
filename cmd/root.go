@@ -31,10 +31,10 @@ Usage:
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		if errors.Is(err, ErrNoMatches) {
 			os.Exit(1)
 		}
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(2)
 	}
 }
