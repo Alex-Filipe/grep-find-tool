@@ -38,10 +38,12 @@ walker  ─┘
 - Caller DEVE cancelar o ctx ao terminar (walkers em voo se desfazem via ctx).
 
 ## 5. output — UX de CLI
-- `FormatResult`: cor no path, `linha:coluna` e no trecho que casou (highlight do match).
+- `FormatResult`: cor no path e número da linha.
 - **TTY-aware**: colorido no terminal, texto puro em pipe/arquivo.
   Flag `--color=auto/always/never`, `auto` como default.
 - Formato `caminho:linha:texto`.
+- **Highlight do match dentro da linha ainda não implementado** (precisa que
+  `MatchFunc` retorne posição — melhoria futura).
 - Agrupamento por arquivo (path no cabeçalho, linhas indentadas) é **opcional**
   via flag `--sort` — exige bufferizar, então NÃO é o default (quebraria a
   memória plana). Trade-off "rápido" vs "organizado" fica com o usuário.
@@ -59,5 +61,7 @@ walker  ─┘
 Após o passo 4 já há busca ponta-a-ponta testável, mesmo sem CLI.
 
 ## Pendências fora do fluxo
-- `go.mod` precisa declarar `require github.com/spf13/cobra` (+ `go.sum`).
-- `.gitignore` do próprio repo; workflow de CI (lint/bench já no Makefile).
+- `go.mod` com `cobra` declarado ✅ (feito no passo 6).
+- `.gitignore` completo ✅.
+- CI workflow: pendente (lint/bench já no Makefile).
+- Highlight do match: pendente (exige mudança no `MatchFunc` para retornar posição).

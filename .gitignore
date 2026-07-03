@@ -1,2 +1,6 @@
 ARCHITECTURE.md
 grep-tool
+*.exe
+*.test
+*.out
+/vendor/
