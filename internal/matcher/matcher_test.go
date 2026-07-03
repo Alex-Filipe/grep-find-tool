@@ -7,8 +7,8 @@ import (
 func TestLiteralCaseSensitive(t *testing.T) {
 	m := NewLiteral("hello", false)
 	tests := []struct {
-		line    string
-		want    bool
+		line string
+		want bool
 	}{
 		{"hello world", true},
 		{"Hello world", false},
@@ -28,8 +28,8 @@ func TestLiteralCaseSensitive(t *testing.T) {
 func TestLiteralCaseInsensitive(t *testing.T) {
 	m := NewLiteral("hello", true)
 	tests := []struct {
-		line    string
-		want    bool
+		line string
+		want bool
 	}{
 		{"hello world", true},
 		{"Hello world", true},
@@ -77,8 +77,8 @@ func TestRegexCaseSensitive(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		line    string
-		want    bool
+		line string
+		want bool
 	}{
 		{"hello", true},
 		{"hxllo", true},
