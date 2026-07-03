@@ -48,12 +48,13 @@ func TestFormatErrAlwaysColor(t *testing.T) {
 	}
 }
 
-func TestFormatEmptyLine(t *testing.T) {
+func TestFormatEmptyLineMatch(t *testing.T) {
 	f := NewFormatter(ColorNever)
-	r := search.Result{Path: "a.txt", LineNum: 0, Line: ""}
+	r := search.Result{Path: "a.txt", LineNum: 5, Line: ""}
 	got := f.FormatResult(r)
-	if got != "" {
-		t.Errorf("expected empty string for empty line, got %q", got)
+	want := "a.txt:5:"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 

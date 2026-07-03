@@ -27,12 +27,15 @@ walker  ─┘
 - Root que é arquivo único: enviado direto, sem checagem de oculto.
 - `.gitignore` fica como `TODO` (adiar; se for implementar, usar lib).
 
-## 4. search (núcleo)
+## 4. search (núcleo) ✅
 - Worker pool sobre todos os `roots`, fan-out walk → extract → match.
 - Canal buffered limitado (`make(chan Result, workers*2)`) = memória plana.
 - `bufio.Scanner` linha-a-linha (com `scanner.Buffer` p/ linhas grandes).
 - Erros por-arquivo embutidos em `Result.Err`; canal fecha ao fim.
 - Saída **não-ordenada** (consequência do streaming/backpressure).
+- Arquivo pulado (sem extractor / binário) = **nenhum** Result enviado.
+- Root inválido → erro de setup retornado por `Search`.
+- Caller DEVE cancelar o ctx ao terminar (walkers em voo se desfazem via ctx).
 
 ## 5. output — UX de CLI
 - `FormatResult`: cor no path, `linha:coluna` e no trecho que casou (highlight do match).
