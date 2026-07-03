@@ -40,10 +40,14 @@ func Walk(ctx context.Context, root string) (<-chan string, error) {
 			default:
 			}
 
+			if path == root {
+				return nil
+			}
+
 			if d.IsDir() {
 				name := d.Name()
 				// Skip .git and hidden directories.
-				if name == ".git" || (strings.HasPrefix(name, ".") && name != ".") {
+				if name == ".git" || strings.HasPrefix(name, ".") {
 					return filepath.SkipDir
 				}
 				return nil

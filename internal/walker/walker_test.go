@@ -2,6 +2,7 @@ package walker
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -109,7 +110,7 @@ func TestWalkSkipsGit(t *testing.T) {
 func TestWalkCancellation(t *testing.T) {
 	dir := t.TempDir()
 	for i := 0; i < 100; i++ {
-		name := filepath.Join(dir, "file.txt")
+		name := filepath.Join(dir, fmt.Sprintf("file%d.txt", i))
 		if err := os.WriteFile(name, []byte("data"), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -128,6 +129,29 @@ func TestWalkCancellation(t *testing.T) {
 	}
 	if count > 0 {
 		t.Errorf("expected 0 files with cancelled context, got %d", count)
+	}
+}
+
+func TestWalkHiddenRoot(t *testing.T) {
+	dir := t.TempDir()
+	hiddenDir := filepath.Join(dir, ".config")
+	if err := os.Mkdir(hiddenDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hiddenDir, "settings.json"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	ch, err := Walk(context.Background(), hiddenDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var paths []string
+	for p := range ch {
+		paths = append(paths, p)
+	}
+	if len(paths) != 1 {
+		t.Errorf("expected 1 file inside hidden root, got %d: %v", len(paths), paths)
 	}
 }
 
