@@ -71,6 +71,19 @@ func TestLiteralUTF8(t *testing.T) {
 	}
 }
 
+func TestLiteralMetaChars(t *testing.T) {
+	m := NewLiteral("a.b", false)
+	if !m("a.b") {
+		t.Error("literal should match '.' as a dot, not as regex wildcard")
+	}
+	if m("axb") {
+		t.Error("literal should NOT match 'axb' — '.' is literal dot")
+	}
+	if m("a\nb") {
+		t.Error("literal should NOT match 'a\\nb' — '.' is literal dot")
+	}
+}
+
 func TestRegexCaseSensitive(t *testing.T) {
 	m, err := NewRegex(`h.llo`, false)
 	if err != nil {

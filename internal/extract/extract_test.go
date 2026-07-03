@@ -71,9 +71,12 @@ func TestPDFExtractor(t *testing.T) {
 
 func TestIOErrorPropagated(t *testing.T) {
 	e := For(".go")
-	_, err := e.Extract("/nonexistent/file.go")
+	r, err := e.Extract("/nonexistent/file.go")
 	if err == nil {
 		t.Error("expected error for nonexistent file")
+	}
+	if r != nil {
+		t.Error("expected nil reader on I/O error")
 	}
 }
 
