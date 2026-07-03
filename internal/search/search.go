@@ -68,8 +68,8 @@ func Search(ctx context.Context, roots []string, match matcher.MatchFunc, worker
 }
 
 // mergePathChannels starts a walker for each root and merges all path channels.
-// All walkers are started before any goroutine — if any root fails,
-// no goroutines are leaked.
+// If a root fails mid-way, walkers from earlier roots may still run until ctx
+// is cancelled — the caller should cancel ctx on error.
 func mergePathChannels(ctx context.Context, roots []string) (<-chan string, error) {
 	var walkers []<-chan string
 	for _, root := range roots {
