@@ -6,7 +6,7 @@ import (
 )
 
 func init() {
-	exts := []string{".txt", ".md", ".log", ".go", ".json", ".yaml", ".toml", ".css", ".html", ".js", ".ts"}
+	exts := []string{".txt", ".md", ".log", ".go", ".json", ".yaml", ".toml", ".css", ".html", ".js", ".ts", ".py", ".rs", ".java", ".c", ".h", ".sh", ".yml"}
 	for _, e := range exts {
 		Register(e, &textExtractor{})
 	}
@@ -15,5 +15,8 @@ func init() {
 type textExtractor struct{}
 
 func (t *textExtractor) Extract(path string) (io.ReadCloser, error) {
+	if isBinary(path) {
+		return nil, nil
+	}
 	return os.Open(path)
 }
