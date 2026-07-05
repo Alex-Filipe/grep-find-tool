@@ -26,6 +26,9 @@ Usage:
   grep-tool find <name> [paths...]`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runInteractive()
+	},
 }
 
 func Execute() {
