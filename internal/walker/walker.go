@@ -28,7 +28,9 @@ func Walk(ctx context.Context, root string) (<-chan string, error) {
 	ch := make(chan string)
 	go func() {
 		defer close(ch)
-		filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		// Return value ignored: WalkDir only surfaces our own ctx.Err() here,
+		// which is the intended cancellation path.
+		_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				// Permission error or similar — skip and continue.
 				return nil

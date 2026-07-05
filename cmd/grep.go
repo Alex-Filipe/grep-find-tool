@@ -48,15 +48,9 @@ Examples:
 			paths = []string{"."}
 		}
 
-		var match matcher.MatchFunc
-		if regexpMode {
-			var err error
-			match, err = matcher.NewRegex(pattern, ignoreCase)
-			if err != nil {
-				return fmt.Errorf("invalid regex: %w", err)
-			}
-		} else {
-			match = matcher.NewLiteral(pattern, ignoreCase)
+		match, err := buildMatcher(pattern, ignoreCase, regexpMode)
+		if err != nil {
+			return err
 		}
 
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -68,26 +62,11 @@ Examples:
 			return err
 		}
 
+		var matched int
 		if sortMode {
-			matched, err := sortAndPrint(ctx, results, formatter)
-			if err != nil {
-				return err
-			}
-			if matched == 0 {
-				return ErrNoMatches
-			}
-			return nil
-		}
-
-		matched := 0
-		for r := range results {
-			line := formatter.FormatResult(r)
-			if r.Err != nil {
-				fmt.Fprintln(os.Stderr, line)
-			} else {
-				fmt.Println(line)
-				matched++
-			}
+			matched = sortAndPrint(results, formatter)
+		} else {
+			matched = streamAndPrint(results, formatter)
 		}
 
 		if matched == 0 {
@@ -97,7 +76,38 @@ Examples:
 	},
 }
 
-func sortAndPrint(ctx context.Context, results <-chan search.Result, formatter *output.Formatter) (int, error) {
+// buildMatcher constructs a MatchFunc from the pattern and flags.
+// Shared by the grep command and the interactive mode.
+func buildMatcher(pattern string, ignoreCase, regexpMode bool) (matcher.MatchFunc, error) {
+	if regexpMode {
+		m, err := matcher.NewRegex(pattern, ignoreCase)
+		if err != nil {
+			return nil, fmt.Errorf("invalid regex: %w", err)
+		}
+		return m, nil
+	}
+	return matcher.NewLiteral(pattern, ignoreCase), nil
+}
+
+// streamAndPrint prints results as they arrive (unordered) and returns the
+// number of matches. Errors go to stderr.
+func streamAndPrint(results <-chan search.Result, formatter *output.Formatter) int {
+	matched := 0
+	for r := range results {
+		line := formatter.FormatResult(r)
+		if r.Err != nil {
+			fmt.Fprintln(os.Stderr, line)
+		} else {
+			fmt.Println(line)
+			matched++
+		}
+	}
+	return matched
+}
+
+// sortAndPrint buffers all results, groups them by file, and returns the
+// number of matches. Uses more memory than streamAndPrint.
+func sortAndPrint(results <-chan search.Result, formatter *output.Formatter) int {
 	var all []search.Result
 	for r := range results {
 		if r.Err != nil {
@@ -114,9 +124,8 @@ func sortAndPrint(ctx context.Context, results <-chan search.Result, formatter *
 		return all[i].LineNum < all[j].LineNum
 	})
 
-	out := formatter.FormatGrouped(all)
-	if out != "" {
+	if out := formatter.FormatGrouped(all); out != "" {
 		fmt.Print(out)
 	}
-	return len(all), nil
+	return len(all)
 }
