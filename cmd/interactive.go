@@ -59,19 +59,36 @@ func printWarn(msg string) {
 	fmt.Printf("  %s%s%s\n", output.Yellow, msg, output.Reset)
 }
 
-// offerSaveReport asks whether to save the results as a report file in
-// Downloads and writes it if the user confirms.
-func offerSaveReport(prefix, content string) {
-	save := false
-	if err := ask(&survey.Confirm{Message: output.Bold + "💾 Salvar resultado em Downloads?" + output.Reset}, &save); err != nil || !save {
-		return
+// Output destinations for a search.
+const (
+	destTerminal = iota
+	destFile
+)
+
+// chooseDestination asks where the results should go, before the search runs.
+func chooseDestination() (int, error) {
+	dest := destTerminal
+	prompt := &survey.Select{
+		Message: output.Bold + "📤 Onde mostrar o resultado?" + output.Reset,
+		Options: []string{
+			"🖥️   No terminal",
+			"💾  Salvar em Downloads",
+		},
 	}
+	err := ask(prompt, &dest)
+	return dest, err
+}
+
+// saveAndReport writes content to a report file and prints a short summary
+// (used by the "salvar em Downloads" destination).
+func saveAndReport(prefix, summary, content string) {
 	path, err := saveReport(prefix, content)
 	if err != nil {
 		printErr("não foi possível salvar: %v", err)
 		return
 	}
-	printInfo("📄 Relatório salvo em: " + path)
+	printInfo("✅ " + summary)
+	printInfo("📄 Salvo em: " + path)
 	fmt.Println()
 }
 
@@ -168,8 +185,13 @@ func runInteractiveGrep(formatter *output.Formatter, lastPattern, lastDir string
 		}
 	}
 
+	dest, err := chooseDestination()
+	if err != nil {
+		return "", "", err
+	}
+
 	printSearching("🔎", pattern, dir)
-	runGrepSearch(formatter, pattern, dir, ignoreCase, useRegex)
+	runGrepSearch(formatter, pattern, dir, ignoreCase, useRegex, dest == destFile)
 	return pattern, dir, nil
 }
 
@@ -204,6 +226,12 @@ func runInteractiveFind(lastName, lastDir string) (string, string, error) {
 		dir = d
 	}
 
+	dest, err := chooseDestination()
+	if err != nil {
+		return "", "", err
+	}
+	toFile := dest == destFile
+
 	printSearching("📁", name, dir)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -218,7 +246,9 @@ func runInteractiveFind(lastName, lastDir string) (string, string, error) {
 	var matches []string
 	for path := range ch {
 		if matched, _ := filepath.Match(name, filepath.Base(path)); matched {
-			fmt.Printf("  📄 %s\n", path)
+			if !toFile {
+				fmt.Printf("  📄 %s\n", path)
+			}
 			matches = append(matches, path)
 		}
 	}
@@ -229,10 +259,21 @@ func runInteractiveFind(lastName, lastDir string) (string, string, error) {
 		return name, dir, nil
 	}
 
-	fmt.Println()
-	printInfo(fmt.Sprintf("%d arquivo(s) encontrado(s).", len(matches)))
-	fmt.Println()
+	summary := fmt.Sprintf("%d arquivo(s) encontrado(s).", len(matches))
 
+	if toFile {
+		saveAndReport("arquivos", summary, buildFindReport(name, dir, matches))
+		return name, dir, nil
+	}
+
+	fmt.Println()
+	printInfo(summary)
+	fmt.Println()
+	return name, dir, nil
+}
+
+// buildFindReport renders a plain-text report of matched file paths.
+func buildFindReport(name, dir string, matches []string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "grep-tool — Relatório de busca de arquivos\n")
 	fmt.Fprintf(&b, "Padrão:   %s\n", name)
@@ -242,12 +283,10 @@ func runInteractiveFind(lastName, lastDir string) (string, string, error) {
 	for _, p := range matches {
 		b.WriteString(p + "\n")
 	}
-	offerSaveReport("arquivos", b.String())
-
-	return name, dir, nil
+	return b.String()
 }
 
-func runGrepSearch(formatter *output.Formatter, pattern, dir string, ignoreCase, useRegex bool) {
+func runGrepSearch(formatter *output.Formatter, pattern, dir string, ignoreCase, useRegex, toFile bool) {
 	match, err := buildMatcher(pattern, ignoreCase, useRegex)
 	if err != nil {
 		printErr("%v", err)
@@ -284,20 +323,30 @@ func runGrepSearch(formatter *output.Formatter, pattern, dir string, ignoreCase,
 		return
 	}
 
+	summary := fmt.Sprintf("%d resultado(s) em %d arquivo(s).", len(all), len(files))
+
+	if toFile {
+		saveAndReport("busca", summary, buildGrepReport(pattern, dir, all, len(files)))
+		return
+	}
+
 	fmt.Print(formatter.FormatGrouped(all))
 	fmt.Println()
-	printInfo(fmt.Sprintf("%d resultado(s) em %d arquivo(s).", len(all), len(files)))
+	printInfo(summary)
 	fmt.Println()
+}
 
+// buildGrepReport renders a plain-text (no ANSI) report of grep results.
+func buildGrepReport(pattern, dir string, all []search.Result, fileCount int) string {
 	plain := output.NewFormatter(output.ColorNever)
 	var b strings.Builder
 	fmt.Fprintf(&b, "grep-tool — Relatório de busca\n")
 	fmt.Fprintf(&b, "Palavra:  %s\n", pattern)
 	fmt.Fprintf(&b, "Pasta:    %s\n", dir)
 	fmt.Fprintf(&b, "Data:     %s\n", time.Now().Format("2006-01-02 15:04:05"))
-	fmt.Fprintf(&b, "Total:    %d resultado(s) em %d arquivo(s)\n\n", len(all), len(files))
+	fmt.Fprintf(&b, "Total:    %d resultado(s) em %d arquivo(s)\n\n", len(all), fileCount)
 	b.WriteString(plain.FormatGrouped(all))
-	offerSaveReport("busca", b.String())
+	return b.String()
 }
 
 // orDot returns "." when s is empty.

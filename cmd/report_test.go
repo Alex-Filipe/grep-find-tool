@@ -33,6 +33,16 @@ func TestSaveReport(t *testing.T) {
 	}
 }
 
+func TestBuildFindReport(t *testing.T) {
+	got := buildFindReport("*.go", "/proj", []string{"/proj/a.go", "/proj/b.go"})
+
+	for _, want := range []string{"Padrão:   *.go", "Pasta:    /proj", "Total:    2 arquivo(s)", "/proj/a.go", "/proj/b.go"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("report missing %q\n---\n%s", want, got)
+		}
+	}
+}
+
 func TestReportsDirPrefersDownloads(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
