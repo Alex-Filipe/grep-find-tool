@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
@@ -56,6 +57,22 @@ func printInfo(msg string) {
 
 func printWarn(msg string) {
 	fmt.Printf("  %s%s%s\n", output.Yellow, msg, output.Reset)
+}
+
+// offerSaveReport asks whether to save the results as a report file in
+// Downloads and writes it if the user confirms.
+func offerSaveReport(prefix, content string) {
+	save := false
+	if err := ask(&survey.Confirm{Message: output.Bold + "💾 Salvar resultado em Downloads?" + output.Reset}, &save); err != nil || !save {
+		return
+	}
+	path, err := saveReport(prefix, content)
+	if err != nil {
+		printErr("não foi possível salvar: %v", err)
+		return
+	}
+	printInfo("📄 Relatório salvo em: " + path)
+	fmt.Println()
 }
 
 // --- menu ---
@@ -198,21 +215,35 @@ func runInteractiveFind(lastName, lastDir string) (string, string, error) {
 		return name, dir, nil
 	}
 
-	found := 0
+	var matches []string
 	for path := range ch {
 		if matched, _ := filepath.Match(name, filepath.Base(path)); matched {
 			fmt.Printf("  📄 %s\n", path)
-			found++
+			matches = append(matches, path)
 		}
 	}
 
-	if found == 0 {
+	if len(matches) == 0 {
 		printWarn("Nenhum arquivo encontrado.")
-	} else {
 		fmt.Println()
-		printInfo(fmt.Sprintf("%d arquivo(s) encontrado(s).", found))
+		return name, dir, nil
 	}
+
 	fmt.Println()
+	printInfo(fmt.Sprintf("%d arquivo(s) encontrado(s).", len(matches)))
+	fmt.Println()
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "grep-tool — Relatório de busca de arquivos\n")
+	fmt.Fprintf(&b, "Padrão:   %s\n", name)
+	fmt.Fprintf(&b, "Pasta:    %s\n", dir)
+	fmt.Fprintf(&b, "Data:     %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Total:    %d arquivo(s)\n\n", len(matches))
+	for _, p := range matches {
+		b.WriteString(p + "\n")
+	}
+	offerSaveReport("arquivos", b.String())
+
 	return name, dir, nil
 }
 
@@ -257,6 +288,16 @@ func runGrepSearch(formatter *output.Formatter, pattern, dir string, ignoreCase,
 	fmt.Println()
 	printInfo(fmt.Sprintf("%d resultado(s) em %d arquivo(s).", len(all), len(files)))
 	fmt.Println()
+
+	plain := output.NewFormatter(output.ColorNever)
+	var b strings.Builder
+	fmt.Fprintf(&b, "grep-tool — Relatório de busca\n")
+	fmt.Fprintf(&b, "Palavra:  %s\n", pattern)
+	fmt.Fprintf(&b, "Pasta:    %s\n", dir)
+	fmt.Fprintf(&b, "Data:     %s\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&b, "Total:    %d resultado(s) em %d arquivo(s)\n\n", len(all), len(files))
+	b.WriteString(plain.FormatGrouped(all))
+	offerSaveReport("busca", b.String())
 }
 
 // orDot returns "." when s is empty.
