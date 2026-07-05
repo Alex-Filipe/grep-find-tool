@@ -122,7 +122,7 @@ func runInteractiveGrep(formatter *output.Formatter, sep string) {
 
 	fmt.Println()
 	fmt.Println(sep)
-	fmt.Printf("  \033[1;33m🔎 Buscando\033[0m \033[1m%s\033[0m em \033[1m%s\033[0m...\n", pattern, dir)
+	fmt.Printf("  \033[1;33m🔎 Buscando\033[0m \033[1m%s\033[0m...\n", pattern)
 	fmt.Println(sep)
 	fmt.Println()
 
@@ -181,25 +181,16 @@ func runInteractiveFind(sep string) {
 		return
 	}
 
-	dir := "."
-	promptDir := &survey.Input{
-		Message: "\033[1m📂 Diretório:\033[0m",
-		Default: ".",
-	}
-	if err := ask(promptDir, &dir); err != nil {
-		return
-	}
-
 	fmt.Println()
 	fmt.Println(sep)
-	fmt.Printf("  \033[1;33m📁 Buscando\033[0m \033[1m%s\033[0m em \033[1m%s\033[0m...\n", name, dir)
+	fmt.Printf("  \033[1;33m📁 Buscando\033[0m \033[1m%s\033[0m...\n", name)
 	fmt.Println(sep)
 	fmt.Println()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	ch, err := walker.Walk(ctx, dir)
+	ch, err := walker.Walk(ctx, "/")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\033[1;31mErro:\033[0m %v\n", err)
 		return
