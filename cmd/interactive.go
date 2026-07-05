@@ -20,6 +20,13 @@ func IsInterrupt(err error) bool {
 	return errors.Is(err, terminal.InterruptErr)
 }
 
+func ask(p survey.Prompt, result interface{}) error {
+	if err := survey.AskOne(p, result); err != nil {
+		return err
+	}
+	return nil
+}
+
 const (
 	menuGrep = iota
 	menuFind
@@ -29,6 +36,10 @@ const (
 func runInteractive() error {
 	formatter := output.NewFormatter(output.ColorAlways)
 	sep := "\033[38;5;208m─────────────────────────────────────\033[0m"
+
+	lastPattern := ""
+	lastDir := "."
+	lastFindName := ""
 
 	for {
 		fmt.Println()
@@ -53,9 +64,25 @@ func runInteractive() error {
 
 		switch action {
 		case menuGrep:
-			runInteractiveGrep(formatter, sep)
+			p, d, err := runInteractiveGrep(formatter, sep, lastPattern, lastDir)
+			if errors.Is(err, terminal.InterruptErr) {
+				return nil
+			}
+			if err == nil && p != "" {
+				lastPattern = p
+				lastDir = d
+			}
+
 		case menuFind:
-			runInteractiveFind(sep)
+			n, d, err := runInteractiveFind(sep, lastFindName, lastDir)
+			if errors.Is(err, terminal.InterruptErr) {
+				return nil
+			}
+			if err == nil && n != "" {
+				lastFindName = n
+				lastDir = d
+			}
+
 		case menuExit:
 			fmt.Println("\n  \033[1;36mAté logo!\033[0m")
 			return nil
@@ -63,16 +90,23 @@ func runInteractive() error {
 	}
 }
 
-func ask(p survey.Prompt, result interface{}) error {
-	if err := survey.AskOne(p, result); err != nil {
-		if IsInterrupt(err) {
-			return err
-		}
+func runInteractiveGrep(formatter *output.Formatter, sep string, lastPattern, lastDir string) (string, string, error) {
+	pattern := ""
+	promptPattern := &survey.Input{
+		Message: "\033[1m📝 Palavra para buscar:\033[0m",
+		Default: lastPattern,
 	}
-	return nil
-}
+	if err := ask(promptPattern, &pattern); err != nil {
+		return "", "", err
+	}
+	if pattern == "" {
+		return "", "", nil
+	}
 
-func askAdvanced() (bool, bool) {
+	dir := lastDir
+	if dir == "" {
+		dir = "."
+	}
 	ignoreCase := false
 	useRegex := false
 
@@ -81,51 +115,120 @@ func askAdvanced() (bool, bool) {
 		Message: "\033[1m⚙️  Opções avançadas?\033[0m",
 		Default: false,
 	}
-	if err := ask(promptAdv, &advanced); err != nil || !advanced {
-		return ignoreCase, useRegex
+	if err := ask(promptAdv, &advanced); err != nil {
+		return "", "", err
 	}
 
-	promptCase := &survey.Confirm{
-		Message: "  🔤 Ignorar maiúscula/minúscula?",
-		Default: false,
-	}
-	ask(promptCase, &ignoreCase)
+	if advanced {
+		promptDir := &survey.Input{
+			Message: "  📂 Diretório:",
+			Default: dir,
+		}
+		if err := ask(promptDir, &dir); err != nil {
+			return "", "", err
+		}
 
-	promptRegex := &survey.Confirm{
-		Message: "  📐 Usar expressão regular?",
-		Default: false,
-	}
-	ask(promptRegex, &useRegex)
+		promptCase := &survey.Confirm{
+			Message: "  🔤 Ignorar maiúscula/minúscula?",
+			Default: false,
+		}
+		if err := ask(promptCase, &ignoreCase); err != nil {
+			return "", "", err
+		}
 
-	return ignoreCase, useRegex
+		promptRegex := &survey.Confirm{
+			Message: "  📐 Usar expressão regular?",
+			Default: false,
+		}
+		if err := ask(promptRegex, &useRegex); err != nil {
+			return "", "", err
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(sep)
+	fmt.Printf("  \033[1;33m🔎 Buscando\033[0m \033[1m%s\033[0m em \033[1m%s\033[0m...\n", pattern, dir)
+	fmt.Println(sep)
+	fmt.Println()
+
+	runGrepSearch(formatter, pattern, dir, ignoreCase, useRegex)
+	return pattern, dir, nil
 }
 
-func runInteractiveGrep(formatter *output.Formatter, sep string) {
-	pattern := ""
-	promptPattern := &survey.Input{
-		Message: "\033[1m📝 Digite a palavra para buscar:\033[0m",
+func runInteractiveFind(sep string, lastName, lastDir string) (string, string, error) {
+	name := ""
+	promptName := &survey.Input{
+		Message: "\033[1m📝 Nome do arquivo (use * como curinga):\033[0m",
+		Default: lastName,
 	}
-	if err := ask(promptPattern, &pattern); err != nil || pattern == "" {
-		return
+	if err := ask(promptName, &name); err != nil {
+		return "", "", err
 	}
-
-	dir := "."
-	promptDir := &survey.Input{
-		Message: "\033[1m📂 Diretório:\033[0m",
-		Default: ".",
-	}
-	if err := ask(promptDir, &dir); err != nil {
-		return
+	if name == "" {
+		return "", "", nil
 	}
 
-	ignoreCase, useRegex := askAdvanced()
+	if _, err := filepath.Match(name, "x"); err != nil {
+		fmt.Fprintf(os.Stderr, "\033[1;31mErro:\033[0m padrão inválido: %v\n", err)
+		return "", "", nil
+	}
+
+	dir := lastDir
+	if dir == "" {
+		dir = "."
+	}
+	advanced := false
+	promptAdv := &survey.Confirm{
+		Message: "\033[1m⚙️  Outro diretório?\033[0m",
+		Default: false,
+	}
+	if err := ask(promptAdv, &advanced); err != nil {
+		return "", "", err
+	}
+	if advanced {
+		promptDir := &survey.Input{
+			Message: "  📂 Diretório:",
+			Default: dir,
+		}
+		if err := ask(promptDir, &dir); err != nil {
+			return "", "", err
+		}
+	}
 
 	fmt.Println()
 	fmt.Println(sep)
-	fmt.Printf("  \033[1;33m🔎 Buscando\033[0m \033[1m%s\033[0m...\n", pattern)
+	fmt.Printf("  \033[1;33m📁 Buscando\033[0m \033[1m%s\033[0m em \033[1m%s\033[0m...\n", name, dir)
 	fmt.Println(sep)
 	fmt.Println()
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	ch, err := walker.Walk(ctx, dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\033[1;31mErro:\033[0m %v\n", err)
+		return name, dir, nil
+	}
+
+	found := 0
+	for path := range ch {
+		if matched, _ := filepath.Match(name, filepath.Base(path)); matched {
+			fmt.Printf("  📄 %s\n", path)
+			found++
+		}
+	}
+
+	if found == 0 {
+		fmt.Println("  \033[1;33mNenhum arquivo encontrado.\033[0m")
+	} else {
+		fmt.Printf("\n  \033[1;36m%d arquivo(s) encontrado(s).\033[0m\n", found)
+	}
+
+	fmt.Println()
+	return name, dir, nil
+}
+
+func runGrepSearch(formatter *output.Formatter, pattern, dir string, ignoreCase, useRegex bool) {
 	var match matcher.MatchFunc
 	if useRegex {
 		var err error
@@ -163,52 +266,4 @@ func runInteractiveGrep(formatter *output.Formatter, sep string) {
 	} else if len(all) > 0 {
 		fmt.Print(formatter.FormatGrouped(all))
 	}
-
-	fmt.Println()
-}
-
-func runInteractiveFind(sep string) {
-	name := ""
-	promptName := &survey.Input{
-		Message: "\033[1m📝 Nome do arquivo (use * como curinga):\033[0m",
-	}
-	if err := ask(promptName, &name); err != nil || name == "" {
-		return
-	}
-
-	if _, err := filepath.Match(name, "x"); err != nil {
-		fmt.Fprintf(os.Stderr, "\033[1;31mErro:\033[0m padrão inválido: %v\n", err)
-		return
-	}
-
-	fmt.Println()
-	fmt.Println(sep)
-	fmt.Printf("  \033[1;33m📁 Buscando\033[0m \033[1m%s\033[0m...\n", name)
-	fmt.Println(sep)
-	fmt.Println()
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-
-	ch, err := walker.Walk(ctx, "/")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\033[1;31mErro:\033[0m %v\n", err)
-		return
-	}
-
-	found := 0
-	for path := range ch {
-		if matched, _ := filepath.Match(name, filepath.Base(path)); matched {
-			fmt.Printf("  📄 %s\n", path)
-			found++
-		}
-	}
-
-	if found == 0 {
-		fmt.Println("  \033[1;33mNenhum arquivo encontrado.\033[0m")
-	} else {
-		fmt.Printf("\n  \033[1;36m%d arquivo(s) encontrado(s).\033[0m\n", found)
-	}
-
-	fmt.Println()
 }
