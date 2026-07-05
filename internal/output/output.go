@@ -16,6 +16,20 @@ const (
 	ColorNever
 )
 
+// ANSI style codes — the shared CLI palette. Kept in one place so the
+// grep/find output and the interactive UI stay visually consistent.
+const (
+	Reset  = "\033[0m"
+	Bold   = "\033[1m"
+	Accent = "\033[38;5;208m" // orange — brand accent (headers, separators)
+	Cyan   = "\033[1;36m"     // paths, info
+	Yellow = "\033[1;33m"     // line numbers, warnings
+	Red    = "\033[1;31m"     // errors
+)
+
+// Separator is the horizontal rule used across the tool's output.
+const Separator = "─────────────────────────────────────"
+
 // Formatter formats search results for display.
 type Formatter struct {
 	colorOut bool // use color for stdout (matches)
@@ -70,14 +84,14 @@ func resolveColor(mode ColorMode, f *os.File) bool {
 
 func (f *Formatter) formatMatch(r search.Result) string {
 	if f.colorOut {
-		return fmt.Sprintf("\033[1;36m%s\033[0m:\033[1;33m%d\033[0m:%s", r.Path, r.LineNum, r.Line)
+		return fmt.Sprintf("%s%s%s:%s%d%s:%s", Cyan, r.Path, Reset, Yellow, r.LineNum, Reset, r.Line)
 	}
 	return fmt.Sprintf("%s:%d:%s", r.Path, r.LineNum, r.Line)
 }
 
 func (f *Formatter) formatErr(r search.Result) string {
 	if f.colorErr {
-		return fmt.Sprintf("\033[1;31m%s\033[0m: %v", r.Path, r.Err)
+		return fmt.Sprintf("%s%s%s: %v", Red, r.Path, Reset, r.Err)
 	}
 	return fmt.Sprintf("%s: %v", r.Path, r.Err)
 }
@@ -98,11 +112,11 @@ func (f *Formatter) FormatGrouped(results []search.Result) string {
 	)
 
 	if f.colorOut {
-		sep = "\033[38;5;208m─────────────────────────────────────\033[0m\n"
-		headerFmt = "\033[38;5;208m%s\033[0m\n"
-		lineFmt = "  \033[1;33mLinha %d\033[0m    %s\n"
+		sep = Accent + Separator + Reset + "\n"
+		headerFmt = Accent + "%s" + Reset + "\n"
+		lineFmt = "  " + Yellow + "Linha %d" + Reset + "    %s\n"
 	} else {
-		sep = "─────────────────────────────────────\n"
+		sep = Separator + "\n"
 		headerFmt = "%s\n"
 		lineFmt = "  Linha %d    %s\n"
 	}
